@@ -156,7 +156,7 @@ GEM
       netrc (~> 0.11)
       public_suffix (~> 4.0)
       typhoeus (~> 1.0)
-    commonmarker (0.23.6)
+    commonmarker (0.23.7)
     concurrent-ruby (1.1.10)
     crack (0.4.5)
       rexml

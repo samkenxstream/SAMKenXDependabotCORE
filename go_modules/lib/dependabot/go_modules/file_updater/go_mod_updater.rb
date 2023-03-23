@@ -2,6 +2,7 @@
 
 require "dependabot/shared_helpers"
 require "dependabot/errors"
+require "dependabot/logger"
 require "dependabot/go_modules/file_updater"
 require "dependabot/go_modules/native_helpers"
 require "dependabot/go_modules/replace_stubber"
@@ -14,12 +15,25 @@ module Dependabot
         RESOLVABILITY_ERROR_REGEXES = [
           # The checksum in go.sum does not match the downloaded content
           /verifying .*: checksum mismatch/,
-          /go(?: get)?: .*: go.mod has post-v\d+ module path/
+          /go(?: get)?: .*: go.mod has post-v\d+ module path/,
+          # The Go tool is suggesting the user should run go mod tidy
+          /go mod tidy/,
+          # Something wrong in the chain of go.mod/go.sum files
+          # These are often fixable with go mod tidy too.
+          /no required module provides package/,
+          /missing go\.sum entry for module providing package/,
+          /malformed module path/,
+          /used for two different module paths/,
+          # https://github.com/golang/go/issues/56494
+          /can't find reason for requirement on/,
+          # import path doesn't exist
+          /package \S+ is not in GOROOT/
         ].freeze
 
         REPO_RESOLVABILITY_ERROR_REGEXES = [
           /fatal: The remote end hung up unexpectedly/,
           /repository '.+' not found/,
+          %r{net/http: TLS handshake timeout},
           # (Private) module could not be fetched
           /go(?: get)?: .*: git (fetch|ls-remote) .*: exit status 128/m,
           # (Private) module could not be found
@@ -139,10 +153,11 @@ module Dependabot
           command = "go mod tidy -e"
 
           # we explicitly don't raise an error for 'go mod tidy' and silently
-          # continue here. `go mod tidy` shouldn't block updating versions
-          # because there are some edge cases where it's OK to fail (such as
-          # generated files not available yet to us).
-          Open3.capture3(environment, command)
+          # continue with an info log here. `go mod tidy` shouldn't block
+          # updating versions because there are some edge cases where it's OK to fail
+          # (such as generated files not available yet to us).
+          _, stderr, status = Open3.capture3(environment, command)
+          Dependabot.logger.info "Failed to `go mod tidy`: #{stderr}" unless status.success?
         end
 
         def run_go_vendor

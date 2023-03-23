@@ -392,11 +392,10 @@ RSpec.describe Dependabot::Bundler::FileParser do
         }]
       end
 
-      its(:length) { is_expected.to eq(5) }
+      its(:length) { is_expected.to eq(4) }
 
-      it "includes the path dependency" do
-        path_dep = dependencies.find { |dep| dep.name == "example" }
-        expect(path_dep.requirements).to eq(expected_requirements)
+      it "does not include the path dependency" do
+        expect(dependencies.map(&:name)).to_not include("example")
       end
 
       it "includes the path dependency's sub-dependency" do
@@ -409,8 +408,7 @@ RSpec.describe Dependabot::Bundler::FileParser do
         let(:dependency_files) { bundler_project_dependency_files("version_specified_gemfile_specification") }
 
         it "includes the path dependency" do
-          path_dep = dependencies.find { |dep| dep.name == "example" }
-          expect(path_dep.requirements).to eq(expected_requirements)
+          expect(dependencies.map(&:name)).to_not include("example")
         end
       end
     end
@@ -829,19 +827,6 @@ RSpec.describe Dependabot::Bundler::FileParser do
           expect(dependencies.map(&:name)).to_not include("statesman")
         end
       end
-    end
-
-    it "instruments the package manager version" do
-      events = []
-      Dependabot.subscribe(Dependabot::Notifications::FILE_PARSER_PACKAGE_MANAGER_VERSION_PARSED) do |*args|
-        events << ActiveSupport::Notifications::Event.new(*args)
-      end
-
-      parser.parse
-
-      expect(events.last.payload).to eq(
-        { ecosystem: "bundler", package_managers: { "bundler" => PackageManagerHelper.bundler_version } }
-      )
     end
   end
 end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "active_support/notifications"
 require "digest"
 require "English"
 require "excon"
@@ -10,9 +9,10 @@ require "open3"
 require "shellwords"
 require "tmpdir"
 
+require "dependabot/simple_instrumentor"
 require "dependabot/utils"
 require "dependabot/errors"
-require "dependabot/version"
+require "dependabot"
 
 module Dependabot
   module SharedHelpers
@@ -97,6 +97,7 @@ module Dependabot
 
       if ENV["DEBUG_HELPERS"] == "true"
         puts env_cmd
+        puts function
         puts stdout
         puts stderr
       end
@@ -151,7 +152,7 @@ module Dependabot
       options ||= {}
       headers = options.delete(:headers)
       {
-        instrumentor: ActiveSupport::Notifications,
+        instrumentor: Dependabot::SimpleInstrumentor,
         connect_timeout: 5,
         write_timeout: 5,
         read_timeout: 20,

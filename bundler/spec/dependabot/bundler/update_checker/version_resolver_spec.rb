@@ -90,7 +90,8 @@ RSpec.describe Dependabot::Bundler::UpdateChecker::VersionResolver do
           let(:dependency_name) { "nokogiri" }
           let(:requirements) { [] }
 
-          pending "is updated, skipped due to https://github.com/dependabot/dependabot-core/issues/2364" do
+          it "is updated" do
+            pending("skipped due to https://github.com/dependabot/dependabot-core/issues/2364")
             expect(subject.version).to eq(Gem::Version.new("1.10.9"))
           end
         end
@@ -122,7 +123,8 @@ RSpec.describe Dependabot::Bundler::UpdateChecker::VersionResolver do
               "bundler_specified_and_required.lock"
             end
 
-            pending "skipped due to https://github.com/dependabot/dependabot-core/issues/2364" do
+            it "is nil" do
+              pending("skipped due to https://github.com/dependabot/dependabot-core/issues/2364")
               is_expected.to be_nil
             end
           end
@@ -173,20 +175,8 @@ RSpec.describe Dependabot::Bundler::UpdateChecker::VersionResolver do
 
         let(:dependency_files) { bundler_project_dependency_files("requires_bundler") }
 
-        pending "resolves version" do
-          expect(subject.version).to eq(Gem::Version.new("3.0.0"))
-        end
-      end
-
-      context "when bundled with v2 and requesting a version that requires bundler v1", :bundler_v2_only do
-        let(:dependency_name) { "guard-bundler" }
-        let(:requirement_string) { "~> 2.2.0" }
-
-        let(:dependency_files) { bundler_project_dependency_files("requires_bundler") }
-
-        pending "raises a DependencyFileNotResolvable error" do
-          expect { subject }.
-            to raise_error(Dependabot::DependencyFileNotResolvable)
+        it "resolves version" do
+          expect(subject[:version]).to eq(Gem::Version.new("3.0.0"))
         end
       end
 
@@ -392,7 +382,13 @@ RSpec.describe Dependabot::Bundler::UpdateChecker::VersionResolver do
           }
         end
 
-        it { is_expected.to be_nil }
+        it "is nil", :bundler_v1_only do
+          expect(resolver.latest_resolvable_version_details).to be_nil
+        end
+
+        it "still resolves fine if the circular dependency does not cause any conflicts", :bundler_v2_only do
+          expect(resolver.latest_resolvable_version_details[:version].to_s).to eq("0.0.1")
+        end
       end
     end
 
@@ -442,7 +438,8 @@ RSpec.describe Dependabot::Bundler::UpdateChecker::VersionResolver do
             source: nil
           }]
         end
-        pending "skipped due to https://github.com/dependabot/dependabot-core/issues/2364" do
+        it "is nil" do
+          pending("skipped due to https://github.com/dependabot/dependabot-core/issues/2364")
           is_expected.to be_nil
         end
       end

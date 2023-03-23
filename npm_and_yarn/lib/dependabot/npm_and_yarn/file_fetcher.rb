@@ -50,6 +50,19 @@ module Dependabot
         end
       end
 
+      def package_manager_version
+        package_managers = {}
+
+        package_managers["npm"] = Helpers.npm_version_numeric(package_lock.content) if package_lock
+        package_managers["yarn"] = yarn_version if yarn_version
+        package_managers["shrinkwrap"] = 1 if shrinkwrap
+
+        {
+          ecosystem: "npm",
+          package_managers: package_managers
+        }
+      end
+
       private
 
       def fetch_files
@@ -65,7 +78,6 @@ module Dependabot
         fetched_files += workspace_package_jsons
         fetched_files += lerna_packages
         fetched_files += path_dependencies(fetched_files)
-        instrument_package_manager_version
 
         fetched_files << inferred_npmrc if inferred_npmrc
 
@@ -101,20 +113,6 @@ module Dependabot
         end
 
         @inferred_npmrc = nil
-      end
-
-      def instrument_package_manager_version
-        package_managers = {}
-
-        package_managers["npm"] = Helpers.npm_version_numeric(package_lock.content) if package_lock
-        package_managers["yarn"] = yarn_version if yarn_version
-        package_managers["shrinkwrap"] = 1 if shrinkwrap
-
-        Dependabot.instrument(
-          Notifications::FILE_PARSER_PACKAGE_MANAGER_VERSION_PARSED,
-          ecosystem: "npm",
-          package_managers: package_managers
-        )
       end
 
       def yarn_version
@@ -275,6 +273,9 @@ module Dependabot
         current_dir = file.name.rpartition("/").first
         current_dir = nil if current_dir == ""
 
+        current_depth = File.join(directory, file.name).split("/").count { |path| !path.empty? }
+        path_to_directory = "../" * current_depth
+
         dep_types = NpmAndYarn::FileParser::DEPENDENCY_TYPES
         parsed_manifest = JSON.parse(file.content)
         dependency_objects = parsed_manifest.values_at(*dep_types).compact
@@ -294,7 +295,7 @@ module Dependabot
           select { |_, v| v.is_a?(String) && v.start_with?(*path_starts) }.
           map do |name, path|
             path = path.gsub(PATH_DEPENDENCY_CLEAN_REGEX, "")
-            raise PathDependenciesNotReachable, "#{name} at #{path}" if path.start_with?("/")
+            raise PathDependenciesNotReachable, "#{name} at #{path}" if path.start_with?("/", "#{path_to_directory}..")
 
             path = File.join(current_dir, path) unless current_dir.nil?
             [name, Pathname.new(path).cleanpath.to_path]

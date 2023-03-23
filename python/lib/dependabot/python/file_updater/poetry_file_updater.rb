@@ -4,7 +4,7 @@ require "toml-rb"
 require "open3"
 require "dependabot/dependency"
 require "dependabot/shared_helpers"
-require "dependabot/python/helpers"
+require "dependabot/python/language_version_manager"
 require "dependabot/python/version"
 require "dependabot/python/requirement"
 require "dependabot/python/python_versions"
@@ -75,10 +75,17 @@ module Dependabot
                 find { |r| r[:file] == pyproject.name }.
                 fetch(:requirement)
 
-              updated_content =
-                content.gsub(declaration_regex(dep)) do |line|
-                  line.gsub(old_req, updated_requirement)
-                end
+              declaration_regex = declaration_regex(dep)
+              updated_content = if content.match?(declaration_regex)
+                                  content.gsub(declaration_regex(dep)) do |match|
+                                    match.gsub(old_req, updated_requirement)
+                                  end
+                                else
+                                  content.gsub(table_declaration_regex(dep)) do |match|
+                                    match.gsub(/(\s*version\s*=\s*["'])#{Regexp.escape(old_req)}/,
+                                               '\1' + updated_requirement)
+                                  end
+                                end
 
               raise "Content did not change!" if content == updated_content
 
@@ -135,7 +142,7 @@ module Dependabot
         def update_python_requirement(pyproject_content)
           PyprojectPreparer.
             new(pyproject_content: pyproject_content).
-            update_python_requirement(Helpers.python_major_minor(python_version))
+            update_python_requirement(language_version_manager.python_major_minor)
         end
 
         def lock_declaration_to_new_version!(poetry_object, dep)
@@ -178,10 +185,10 @@ module Dependabot
               write_temporary_dependency_files(pyproject_content)
               add_auth_env_vars
 
-              Helpers.install_required_python(python_version)
+              language_version_manager.install_required_python
 
               # use system git instead of the pure Python dulwich
-              unless python_version&.start_with?("3.6")
+              unless language_version_manager.python_version&.start_with?("3.6")
                 run_poetry_command("pyenv exec poetry config experimental.system-git-client true")
               end
 
@@ -232,7 +239,7 @@ module Dependabot
           end
 
           # Overwrite the .python-version with updated content
-          File.write(".python-version", Helpers.python_major_minor(python_version)) if python_version
+          File.write(".python-version", language_version_manager.python_major_minor)
 
           # Overwrite the pyproject with updated content
           File.write("pyproject.toml", pyproject_content)
@@ -242,29 +249,6 @@ module Dependabot
           Python::FileUpdater::PyprojectPreparer.
             new(pyproject_content: pyproject.content).
             add_auth_env_vars(credentials)
-        end
-
-        def python_version
-          requirements = python_requirement_parser.user_specified_requirements
-          requirements = requirements.
-                         map { |r| Python::Requirement.requirements_array(r) }
-
-          PythonVersions::SUPPORTED_VERSIONS_TO_ITERATE.find do |version|
-            requirements.all? do |reqs|
-              reqs.any? { |r| r.satisfied_by?(Python::Version.new(version)) }
-            end
-          end
-        end
-
-        def python_requirement_parser
-          @python_requirement_parser ||=
-            FileParser::PythonRequirementParser.new(
-              dependency_files: dependency_files
-            )
-        end
-
-        def pre_installed_python?(version)
-          PythonVersions::PRE_INSTALLED_PYTHON_VERSIONS.include?(version)
         end
 
         def pyproject_hash_for(pyproject_content)
@@ -282,8 +266,15 @@ module Dependabot
         end
 
         def declaration_regex(dep)
-          escaped_name = Regexp.escape(dep.name).gsub("\\-", "[-_.]")
-          /(?:^\s*|["'])#{escaped_name}["']?\s*=.*$/i
+          /(?:^\s*|["'])#{escape(dep)}["']?\s*=.*$/i
+        end
+
+        def table_declaration_regex(dep)
+          /tool\.poetry\.[^\n]+\.#{escape(dep)}\]\n.*?\s*version\s* =.*?\n/m
+        end
+
+        def escape(dep)
+          Regexp.escape(dep.name).gsub("\\-", "[-_.]")
         end
 
         def file_changed?(file)
@@ -305,6 +296,20 @@ module Dependabot
 
         def normalise(name)
           NameNormaliser.normalise(name)
+        end
+
+        def python_requirement_parser
+          @python_requirement_parser ||=
+            FileParser::PythonRequirementParser.new(
+              dependency_files: dependency_files
+            )
+        end
+
+        def language_version_manager
+          @language_version_manager ||=
+            LanguageVersionManager.new(
+              python_requirement_parser: python_requirement_parser
+            )
         end
 
         def pyproject

@@ -83,6 +83,7 @@ require "dependabot/update_checkers"
 require "dependabot/file_updaters"
 require "dependabot/pull_request_creator"
 require "dependabot/config/file_fetcher"
+require "dependabot/simple_instrumentor"
 
 require "dependabot/bundler"
 require "dependabot/cargo"
@@ -477,15 +478,15 @@ end
 StackProf.start(raw: true) if $options[:profile]
 
 $network_trace_count = 0
-ActiveSupport::Notifications.subscribe(/excon.request/) do |*args|
-  $network_trace_count += 1
-  payload = args.last
-  puts "🌍 #{payload[:scheme]}://#{payload[:host]}#{payload[:path]}"
-end
+Dependabot::SimpleInstrumentor.subscribe do |*args|
+  name = args.first
+  $network_trace_count += 1 if name == "excon.request"
 
-$package_manager_version_log = []
-Dependabot.subscribe(Dependabot::Notifications::FILE_PARSER_PACKAGE_MANAGER_VERSION_PARSED) do |*args|
-  $package_manager_version_log << args.last
+  payload = args.last
+  if name == "excon.request" || name == "excon.response"
+    puts "🌍 #{name == 'excon.response' ? "<-- #{payload[:status]}" : "--> #{payload[:method].upcase}"}" \
+         " #{Excon::Utils.request_uri(payload)}"
+  end
 end
 
 $source = Dependabot::Source.new(
@@ -628,17 +629,6 @@ def peer_dependency_should_update_instead?(dependency_name, updated_deps)
 end
 
 def file_updater_for(dependencies)
-  if dependencies.count == 1
-    updated_dependency = dependencies.first
-    prev_v = updated_dependency.previous_version
-    prev_v_msg = prev_v ? "from #{prev_v} " : ""
-    puts " => updating #{updated_dependency.name} #{prev_v_msg}to " \
-         "#{updated_dependency.version}"
-  else
-    dependency_names = dependencies.map(&:name)
-    puts " => updating #{dependency_names.join(', ')}"
-  end
-
   Dependabot::FileUpdaters.for_package_manager($package_manager).new(
     dependencies: dependencies,
     dependency_files: $files,
@@ -759,6 +749,17 @@ dependencies.each do |dep|
     d.version == d.previous_version
   end
 
+  msg = Dependabot::PullRequestCreator::MessageBuilder.new(
+    dependencies: updated_deps,
+    files: updated_files,
+    credentials: $options[:credentials],
+    source: $source,
+    commit_message_options: $update_config.commit_message_options.to_h,
+    github_redirection_service: Dependabot::PullRequestCreator::DEFAULT_GITHUB_REDIRECTION_SERVICE
+  ).message
+
+  puts " => #{msg.pr_name.downcase}"
+
   if $options[:write]
     updated_files.each do |updated_file|
       path = File.join(dependency_files_cache_dir, updated_file.name)
@@ -787,14 +788,6 @@ dependencies.each do |dep|
   end
 
   if $options[:pull_request]
-    msg = Dependabot::PullRequestCreator::MessageBuilder.new(
-      dependencies: updated_deps,
-      files: updated_files,
-      credentials: $options[:credentials],
-      source: $source,
-      commit_message_options: $update_config.commit_message_options.to_h,
-      github_redirection_service: Dependabot::PullRequestCreator::DEFAULT_GITHUB_REDIRECTION_SERVICE
-    ).message
     puts "Pull Request Title: #{msg.pr_name}"
     puts "--description--\n#{msg.pr_message}\n--/description--"
     puts "--commit--\n#{msg.commit_message}\n--/commit--"
@@ -807,7 +800,8 @@ StackProf.stop if $options[:profile]
 StackProf.results("tmp/stackprof-#{Time.now.strftime('%Y-%m-%d-%H:%M')}.dump") if $options[:profile]
 
 puts "🌍 Total requests made: '#{$network_trace_count}'"
-puts "🎈 Package manager version log: #{$package_manager_version_log.join('\n')}" if $package_manager_version_log.any?
+package_manager = fetcher.package_manager_version
+puts "🎈 Package manager version log: #{package_manager}" unless package_manager.nil?
 
 # rubocop:enable Metrics/BlockLength
 

@@ -95,9 +95,15 @@ module Dependabot
       rescue Dependabot::SharedHelpers::HelperSubprocessFailed => e
         if e.message.include?("fatal: Remote branch #{target_branch} not found in upstream origin")
           raise Dependabot::BranchNotFound, target_branch
+        elsif e.message.include?("No space left on device")
+          raise Dependabot::OutOfDisk
         end
 
         raise Dependabot::RepoNotFound, source
+      end
+
+      def package_manager_version
+        nil
       end
 
       private
@@ -607,7 +613,7 @@ module Dependabot
               CMD
             )
           rescue SharedHelpers::HelperSubprocessFailed => e
-            raise unless GIT_SUBMODULE_ERROR_REGEX && e.message.downcase.include?("submodule")
+            raise unless e.message.match(GIT_SUBMODULE_ERROR_REGEX) && e.message.downcase.include?("submodule")
 
             submodule_cloning_failed = true
             match = e.message.match(GIT_SUBMODULE_ERROR_REGEX)

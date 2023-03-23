@@ -23,7 +23,8 @@ module Dependabot
       # - Any extensions
       DEPENDENCY_SELECTOR = "project > parent, " \
                             "dependencies > dependency, " \
-                            "extensions > extension"
+                            "extensions > extension, " \
+                            "annotationProcessorPaths > path"
       PLUGIN_SELECTOR     = "plugins > plugin"
       EXTENSION_SELECTOR  = "extensions > extension"
 
@@ -271,9 +272,10 @@ module Dependabot
       end
 
       def pomfiles
-        # NOTE: this (correctly) excludes any parent POMs that were downloaded
         @pomfiles ||=
-          dependency_files.select { |f| f.name.end_with?("pom.xml") }
+          dependency_files.select do |f|
+            f.name.end_with?(".xml") && !f.name.end_with?("extensions.xml")
+          end
       end
 
       def extensionfiles

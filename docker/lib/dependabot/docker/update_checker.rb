@@ -119,7 +119,11 @@ module Dependabot
         # digests are also unequal. Avoids 'updating' ruby-2 -> ruby-2.5.1
         return false if precision_of(old_v) == precision_of(latest_v)
 
-        digest_of(version) == digest_of(latest_version)
+        digest = digest_of(version)
+        latest_digest = digest_of(latest_version)
+        return false unless digest && latest_digest
+
+        digest == latest_digest
       end
 
       def digest_up_to_date?
@@ -152,17 +156,21 @@ module Dependabot
         candidate_tags = sort_tags(candidate_tags, version)
 
         latest_tag = candidate_tags.last
+        return version unless latest_tag
 
-        if latest_tag && same_precision?(latest_tag, version)
-          latest_tag
+        return latest_tag if same_precision?(latest_tag, version)
+
+        latest_same_precision_tag = remove_precision_changes(candidate_tags, version).last
+        return latest_tag unless latest_same_precision_tag
+
+        latest_same_precision_digest = digest_of(latest_same_precision_tag)
+        latest_digest = digest_of(latest_tag)
+        return latest_tag unless latest_same_precision_digest && latest_digest
+
+        if latest_same_precision_digest == latest_digest
+          latest_same_precision_tag
         else
-          latest_same_precision_tag = remove_precision_changes(candidate_tags, version).last
-
-          if latest_same_precision_tag && digest_of(latest_same_precision_tag) == digest_of(latest_tag)
-            latest_same_precision_tag
-          else
-            latest_tag || version
-          end
+          latest_tag
         end
       end
 
@@ -365,7 +373,8 @@ module Dependabot
             "https://#{registry_hostname}",
             user: registry_credentials&.fetch("username", nil),
             password: registry_credentials&.fetch("password", nil),
-            read_timeout: 10
+            read_timeout: 10,
+            http_options: { proxy: ENV.fetch("HTTPS_PROXY", nil) }
           )
       end
 
@@ -396,7 +405,10 @@ module Dependabot
             version = comparable_version_from(tag)
             ignore_requirements.any? { |r| r.satisfied_by?(version) }
           end
-        if @raise_on_ignored && filter_lower_versions(filtered).empty? && filter_lower_versions(candidate_tags).any?
+        if @raise_on_ignored &&
+           filter_lower_versions(filtered).empty? &&
+           filter_lower_versions(candidate_tags).any? &&
+           digest_up_to_date?
           raise AllVersionsIgnored
         end
 

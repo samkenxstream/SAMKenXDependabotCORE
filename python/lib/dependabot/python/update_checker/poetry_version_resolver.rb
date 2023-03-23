@@ -92,10 +92,10 @@ module Dependabot
                 write_temporary_dependency_files(updated_req: requirement)
                 add_auth_env_vars
 
-                Helpers.install_required_python(python_version)
+                language_version_manager.install_required_python
 
                 # use system git instead of the pure Python dulwich
-                unless python_version&.start_with?("3.6")
+                unless language_version_manager.python_version&.start_with?("3.6")
                   run_poetry_command("pyenv exec poetry config experimental.system-git-client true")
                 end
 
@@ -205,7 +205,7 @@ module Dependabot
           end
 
           # Overwrite the .python-version with updated content
-          File.write(".python-version", Helpers.python_major_minor(python_version)) if python_version
+          File.write(".python-version", language_version_manager.python_major_minor)
 
           # Overwrite the pyproject with updated content
           if update_pyproject
@@ -224,39 +224,10 @@ module Dependabot
             add_auth_env_vars(credentials)
         end
 
-        def python_version
-          requirements = python_requirement_parser.user_specified_requirements
-          requirements = requirements.
-                         map { |r| Python::Requirement.requirements_array(r) }
-
-          version = PythonVersions::SUPPORTED_VERSIONS_TO_ITERATE.find do |v|
-            requirements.all? do |reqs|
-              reqs.any? { |r| r.satisfied_by?(Python::Version.new(v)) }
-            end
-          end
-          return version if version
-
-          msg = "Dependabot detected the following Python requirements " \
-                "for your project: '#{requirements}'.\n\nCurrently, the " \
-                "following Python versions are supported in Dependabot: " \
-                "#{PythonVersions::SUPPORTED_VERSIONS.join(', ')}."
-          raise DependencyFileNotResolvable, msg
-        end
-
-        def python_requirement_parser
-          @python_requirement_parser ||=
-            FileParser::PythonRequirementParser.new(
-              dependency_files: dependency_files
-            )
-        end
-
-        def pre_installed_python?(version)
-          PythonVersions::PRE_INSTALLED_PYTHON_VERSIONS.include?(version)
-        end
-
         def updated_pyproject_content(updated_requirement:)
           content = pyproject.content
           content = sanitize_pyproject_content(content)
+          content = update_python_requirement(content)
           content = freeze_other_dependencies(content)
           content = set_target_dependency_req(content, updated_requirement)
           content
@@ -265,6 +236,7 @@ module Dependabot
         def sanitized_pyproject_content
           content = pyproject.content
           content = sanitize_pyproject_content(content)
+          content = update_python_requirement(content)
           content
         end
 
@@ -274,13 +246,18 @@ module Dependabot
             sanitize
         end
 
+        def update_python_requirement(pyproject_content)
+          Python::FileUpdater::PyprojectPreparer.
+            new(pyproject_content: pyproject_content).
+            update_python_requirement(language_version_manager.python_major_minor)
+        end
+
         def freeze_other_dependencies(pyproject_content)
           Python::FileUpdater::PyprojectPreparer.
             new(pyproject_content: pyproject_content, lockfile: lockfile).
             freeze_top_level_dependencies_except([dependency])
         end
 
-        # rubocop:disable Metrics/PerceivedComplexity
         def set_target_dependency_req(pyproject_content, updated_requirement)
           return pyproject_content unless updated_requirement
 
@@ -288,15 +265,15 @@ module Dependabot
           poetry_object = pyproject_object.dig("tool", "poetry")
 
           Dependabot::Python::FileParser::PyprojectFilesParser::POETRY_DEPENDENCY_TYPES.each do |type|
-            names = poetry_object[type]&.keys || []
-            pkg_name = names.find { |nm| normalise(nm) == dependency.name }
-            next unless pkg_name
+            dependencies = poetry_object[type]
+            next unless dependencies
 
-            if poetry_object.dig(type, pkg_name).is_a?(Hash)
-              poetry_object[type][pkg_name]["version"] = updated_requirement
-            else
-              poetry_object[type][pkg_name] = updated_requirement
-            end
+            update_dependency_requirement(dependencies, updated_requirement)
+          end
+
+          groups = poetry_object["group"]&.values || []
+          groups.each do |group_spec|
+            update_dependency_requirement(group_spec["dependencies"], updated_requirement)
           end
 
           # If this is a sub-dependency, add the new requirement
@@ -307,7 +284,18 @@ module Dependabot
 
           TomlRB.dump(pyproject_object)
         end
-        # rubocop:enable Metrics/PerceivedComplexity
+
+        def update_dependency_requirement(toml_node, requirement)
+          names = toml_node.keys
+          pkg_name = names.find { |nm| normalise(nm) == dependency.name }
+          return unless pkg_name
+
+          if toml_node[pkg_name].is_a?(Hash)
+            toml_node[pkg_name]["version"] = requirement
+          else
+            toml_node[pkg_name] = requirement
+          end
+        end
 
         def subdep_type
           category =
@@ -316,6 +304,20 @@ module Dependabot
             fetch("category")
 
           category == "dev" ? "dev-dependencies" : "dependencies"
+        end
+
+        def python_requirement_parser
+          @python_requirement_parser ||=
+            FileParser::PythonRequirementParser.new(
+              dependency_files: dependency_files
+            )
+        end
+
+        def language_version_manager
+          @language_version_manager ||=
+            LanguageVersionManager.new(
+              python_requirement_parser: python_requirement_parser
+            )
         end
 
         def pyproject

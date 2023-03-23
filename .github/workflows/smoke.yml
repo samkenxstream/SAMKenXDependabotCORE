@@ -18,27 +18,31 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          - actions
-          - bundler
-          - cargo
-          - composer
-          - docker
-          - elm
-          - go
-          - gradle
-          - hex
-          - maven
-          - npm
-          - npm-remove-transitive
-          - nuget
-          - pip
-          - pip-compile
-          - pipenv
-          - poetry
-          - pub
-          - submodules
-          - terraform
-          - yarn-berry
+          - { path: bundler, name: bundler, ecosystem: bundler }
+          - { path: cargo, name: cargo, ecosystem: cargo }
+          - { path: composer, name: composer, ecosystem: composer }
+          - { path: docker, name: docker, ecosystem: docker }
+          - { path: elm, name: elm, ecosystem: elm }
+          - { path: git_submodules, name: submodules, ecosystem: gitsubmodule }
+          - { path: github_actions, name: actions, ecosystem: github-actions }
+          - { path: go_modules, name: go, ecosystem: gomod }
+          - { path: go_modules, name: go-close-pr, ecosystem: gomod }
+          - { path: go_modules, name: go-security, ecosystem: gomod }
+          - { path: go_modules, name: go-update-pr, ecosystem: gomod }
+          - { path: gradle, name: gradle, ecosystem: gradle }
+          - { path: hex, name: hex, ecosystem: mix }
+          - { path: maven, name: maven, ecosystem: maven }
+          - { path: npm_and_yarn, name: npm, ecosystem: npm}
+          - { path: npm_and_yarn, name: npm-remove-transitive, ecosystem: npm}
+          - { path: npm_and_yarn, name: yarn-berry, ecosystem: npm}
+          - { path: npm_and_yarn, name: yarn-berry-workspaces, ecosystem: npm}
+          - { path: nuget, name: nuget, ecosystem: nuget }
+          - { path: pub, name: pub, ecosystem: pub }
+          - { path: python, name: pip, ecosystem: pip }
+          - { path: python, name: pipenv, ecosystem: pip}
+          - { path: python, name: pip-compile, ecosystem: pip }
+          - { path: python, name: poetry, ecosystem: pip }
+          - { path: terraform, name: terraform, ecosystem: terraform }
     steps:
     - uses: actions/checkout@v3
     - uses: dorny/paths-filter@v2
@@ -47,182 +51,190 @@ jobs:
       with:
         filters: |
           actions:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'github_actions/**'
           bundler:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'bundler/**'
           cargo:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'cargo/**'
           composer:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'composer/**'
           docker:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'docker/**'
           elm:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'elm/**'
           go:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
+            - 'common/**'
+            - 'updater/**'
+            - 'go_modules/**'
+          'go-close-pr':
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
+            - 'common/**'
+            - 'updater/**'
+            - 'go_modules/**'
+          'go-security':
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
+            - 'common/**'
+            - 'updater/**'
+            - 'go_modules/**'
+          'go-update-pr':
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'go_modules/**'
           gradle:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
-            - 'maven/**'
             - 'gradle/**'
           hex:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'hex/**'
           maven:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'maven/**'
           npm:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'npm_and_yarn/**'
           'npm-remove-transitive':
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'npm_and_yarn/**'
           nuget:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'nuget/**'
-          pub:
-            - Dockerfile
-            - Dockerfile.updater
-            - 'common/**'
-            - 'updater/**'
-            - 'pub/**'
           pip:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'python/**'
           'pip-compile':
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'python/**'
           pipenv:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'python/**'
           poetry:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'python/**'
+          pub:
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
+            - 'common/**'
+            - 'updater/**'
+            - 'pub/**'
           submodules:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'git_submodules/**'
           terraform:
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'terraform/**'
           'yarn-berry':
-            - Dockerfile
-            - Dockerfile.updater
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
+            - 'common/**'
+            - 'updater/**'
+            - 'npm_and_yarn/**'
+          'yarn-berry-workspaces':
+            - .github/workflows/smoke.yml
+            - Dockerfile.updater-core
             - 'common/**'
             - 'updater/**'
             - 'npm_and_yarn/**'
 
     - name: Download CLI and test
-      if: steps.changes.outputs[matrix.suite] == 'true'
+      if: steps.changes.outputs[matrix.suite.name] == 'true'
       run: |
         gh release download --repo dependabot/cli -p "*linux-amd64.tar.gz"
         tar xzvf *.tar.gz >/dev/null 2>&1
         ./dependabot --version
-        URL=https://api.github.com/repos/dependabot/smoke-tests/contents/tests/smoke-${{ matrix.suite }}.yaml
+        URL=https://api.github.com/repos/dependabot/smoke-tests/contents/tests/smoke-${{ matrix.suite.name }}.yaml
         curl $(gh api $URL --jq .download_url) -o smoke.yaml
 
     # Download the Proxy cache. The job is ideally 100% cached so no real calls are made.
     - name: Download cache
-      if: steps.changes.outputs[matrix.suite] == 'true'
+      if: steps.changes.outputs[matrix.suite.name] == 'true'
       run: |
         mkdir cache
         cd cache
-        gh run download --repo dependabot/smoke-tests --name cache-${{ matrix.suite }}
+        gh run download --repo dependabot/smoke-tests --name cache-${{ matrix.suite.name }}
 
-    - name: Build dependabot-core image
-      if: steps.changes.outputs[matrix.suite] == 'true'
-      env:
-        DOCKER_BUILDKIT: 1
-      run: |
-        docker build \
-          -t "dependabot/dependabot-core:latest" \
-          --build-arg BUILDKIT_INLINE_CACHE=1 \
-          --cache-from ghcr.io/dependabot/dependabot-core \
-          .
-    - name: Build dependabot-updater image
-      if: steps.changes.outputs[matrix.suite] == 'true'
-      env:
-        DOCKER_BUILDKIT: 1
-        OMNIBUS_VERSION: latest
-      run: |
-        docker build \
-          -t "dependabot/updater:latest" \
-          --build-arg BUILDKIT_INLINE_CACHE=1 \
-          --cache-from ghcr.io/dependabot/dependabot-core \
-          --cache-from ghcr.io/dependabot/dependabot-updater/dependabot-updater \
-          --build-arg OMNIBUS_VERSION=$OMNIBUS_VERSION \
-          -f Dockerfile.updater \
-          .
+    - name: Build ecosystem image
+      if: steps.changes.outputs[matrix.suite.name] == 'true'
+      run: script/build ${{ matrix.suite.path }}
 
-    - name: ${{ matrix.suite }}
-      if: steps.changes.outputs[matrix.suite] == 'true'
+    - name: ${{ matrix.suite.name }}
+      if: steps.changes.outputs[matrix.suite.name] == 'true'
       env:
         LOCAL_GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -o pipefail
-        ./dependabot test -f=smoke.yaml -o=result.yaml --cache=cache --timeout=20m --updater-image=dependabot/updater:latest 2>&1 | tee -a log.txt
+        ./dependabot test \
+          -f=smoke.yaml \
+          -o=result.yaml \
+          --cache=cache \
+          --timeout=20m \
+          --updater-image=ghcr.io/dependabot/dependabot-updater-${{ matrix.suite.ecosystem }}:latest \
+          2>&1 | tee -a log.txt
 
     - name: Diff
       if: always()
@@ -230,7 +242,7 @@ jobs:
       run: diff --ignore-space-change smoke.yaml result.yaml && echo "Contents are identical"
 
     - name: Create summary
-      if: steps.changes.outputs[matrix.suite] == 'true'
+      if: steps.changes.outputs[matrix.suite.name] == 'true'
       run: tail -n100 log.txt | grep -P '\d+/\d+ calls cached \(\d+%\)' >> $GITHUB_STEP_SUMMARY
 
     # No upload at the end:

@@ -13,6 +13,7 @@ module Dependabot
       def self.updated_files_regex
         [
           /^pom\.xml$/, %r{/pom\.xml$},
+          /.*\.xml$/, %r{/.*\.xml$},
           /^extensions.\.xml$/, %r{/extensions\.xml$}
         ]
       end
@@ -31,11 +32,10 @@ module Dependabot
           )
         end
 
-        updated_files.select! { |f| f.name.end_with?("pom.xml", "extensions.xml") }
+        updated_files.select! { |f| f.name.end_with?(".xml") }
         updated_files.reject! { |f| dependency_files.include?(f) }
 
         raise "No files changed!" if updated_files.none?
-        raise "Updated a supporting POM!" if updated_files.any? { |f| f.name.end_with?("pom_parent.xml") }
 
         updated_files
       end

@@ -48,6 +48,16 @@ RSpec.describe Dependabot::NpmAndYarn::FileParser::LockfileParser do
         end
       end
 
+      context "that contains dependencies with multiple requirements" do
+        let(:dependency_files) { project_dependency_files("yarn_berry/multiple_requirements") }
+
+        its(:length) { is_expected.to eq(172) }
+
+        it "includes those dependencies" do
+          expect(dependencies.map(&:name)).to include("@nodelib/fs.stat")
+        end
+      end
+
       context "that contain bad lockfile" do
         let(:dependency_files) { project_dependency_files("yarn/broken_lockfile") }
 
@@ -131,6 +141,12 @@ RSpec.describe Dependabot::NpmAndYarn::FileParser::LockfileParser do
         its(:subdependency_metadata) do
           is_expected.to eq([{ npm_bundled: true }])
         end
+      end
+
+      context "in v3 format" do
+        let(:dependency_files) { project_dependency_files("npm8/package-lock-v3") }
+
+        its(:length) { is_expected.to eq(2) }
       end
     end
 
